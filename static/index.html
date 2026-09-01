@@ -133,7 +133,7 @@
       </div>
     </div>
 
-    <div class="sub">
+    <div id="inap-section" class="sub hidden">
       <div class="field" style="max-width:280px;">
         <span>Tipe Tarif Inap</span>
         <select id="overstay_type" onchange="onInapChange()">
@@ -218,6 +218,11 @@ function onParamChange() {
   const p = document.querySelector('input[name=ovparam]:checked').value;
   $("ov-duration").classList.toggle("hidden", p !== "DURATION");
   $("ov-time").classList.toggle("hidden", p !== "TIME");
+  $("inap-section").classList.toggle("hidden", p === "");
+  if (p === "") {
+    $("overstay_type").value = "";
+    onInapChange();
+  }
 }
 
 function onInapChange() {
