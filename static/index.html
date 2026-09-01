@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulasi Tarif Parkir</title>
+<style>
+  :root {
+    --bg: #f4f5fa; --card: #ffffff; --line: #e5e8f0;
+    --text: #14181f; --muted: #667085;
+    --accent: #4652e0; --accent-dark: #3641c9; --accent-soft: #eef0ff;
+    --danger-bg: #fdecec; --danger: #b42318; --ok-bg: #e8f6ec; --ok: #1c7c3d;
+    --warn-bg: #fdf3dc; --warn: #946200;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px 16px 48px; background: var(--bg); color: var(--text);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 14px; }
+  .wrap { max-width: 720px; margin: auto; display: grid; gap: 14px; }
+
+  header { text-align: center; margin-bottom: 4px; }
+  header h1 { margin: 0; font-size: 21px; letter-spacing: -.02em; }
+  header p { margin: 5px 0 0; color: var(--muted); font-size: 13px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: 18px; box-shadow: 0 1px 2px rgba(20,24,31,.04); }
+  .card h2 { margin: 0 0 14px; font-size: 11px; font-weight: 700; letter-spacing: .09em;
+             text-transform: uppercase; color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .field > span { font-size: 12px; font-weight: 600; color: var(--muted); }
+  input, select { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 9px;
+                  font-size: 14px; background: #fff; color: var(--text); outline: none; }
+  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* segmented pill */
+  .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; background: #edeff5; border-radius: 11px; padding: 4px; }
+  .seg label { position: relative; cursor: pointer; }
+  .seg input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; }
+  .seg span { display: block; padding: 7px 15px; border-radius: 8px; font-weight: 600; font-size: 13px;
+              color: var(--muted); transition: .15s; white-space: nowrap; }
+  .seg input:checked + span { background: #fff; color: var(--accent); box-shadow: 0 1px 3px rgba(20,24,31,.12); }
+  .seg input:focus-visible + span { outline: 2px solid var(--accent); }
+
+  .sub { background: #f8f9fd; border: 1px dashed #d8dcea; border-radius: 10px; padding: 13px; margin-top: 12px; }
+  .sub .grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .hidden { display: none !important; }
+
+  #period-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  #period-table th { text-align: left; color: var(--muted); font-size: 12px; padding-bottom: 6px; }
+  #period-table td { padding: 3px 6px 3px 0; }
+  #add-period { background: var(--accent-soft); color: var(--accent-dark); border: 0; border-radius: 8px;
+                font-weight: 600; font-size: 13px; padding: 7px 14px; cursor: pointer; margin-top: 8px; }
+  .del-row { background: none; border: 0; color: var(--danger); font-size: 17px; font-weight: 700;
+             cursor: pointer; padding: 4px 8px; line-height: 1; }
+
+  #calc-btn { width: 100%; padding: 13px; border: 0; border-radius: 12px; font-size: 15px; font-weight: 700;
+              color: #fff; background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+              cursor: pointer; box-shadow: 0 4px 12px rgba(70,82,224,.30); transition: .15s; }
+  #calc-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  #calc-btn:active { transform: none; }
+
+  #error { background: var(--danger-bg); border: 1px solid #f3c2bd; color: var(--danger);
+           border-radius: var(--radius); padding: 13px 16px; font-weight: 500; }
+
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .badge { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 4px 11px; }
+  .badge.grace { background: var(--ok-bg); color: var(--ok); }
+  .badge.overstay { background: var(--warn-bg); color: var(--warn); }
+  .result-total { font-size: 32px; font-weight: 800; letter-spacing: -.03em; margin: 10px 0 2px; }
+  .result-total small { font-size: 12px; font-weight: 600; color: var(--muted); display: block;
+                        letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
+  .breakdown { margin-top: 10px; border-top: 1px solid var(--line); }
+  .breakdown div { display: flex; justify-content: space-between; padding: 9px 0;
+                   border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .breakdown div span:first-child { color: var(--muted); }
+  .breakdown div span:last-child { font-weight: 600; }
+  .logs { margin-top: 10px; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Simulasi Tarif Parkir</h1>
+  </header>
+
+  <!-- Skenario -->
+  <div class="card">
+    <h2>Skenario</h2>
+    <div class="grid">
+      <div class="field">
+        <span>Tipe Tarif</span>
+        <select id="type" onchange="onTypeChange()">
+          <option value="FLAT">FLAT (per hari)</option>
+          <option value="PROGRESSIVE">PROGRESSIVE</option>
+          <option value="LIMITED_PROGRESSIVE">LIMITED PROGRESSIVE</option>
+          <option value="PERIOD">PERIOD (Dynamic)</option>
+        </select>
+      </div>
+      <div class="field">
+        <span>Current User</span>
+        <div class="seg">
+          <label><input type="radio" name="user" id="u-casual" value="casual" checked><span>Casual</span></label>
+          <label><input type="radio" name="user" id="u-member" value="member"><span>Member</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <span>Affected User</span>
+        <select id="overstay_affected_user">
+          <option value="ALL">ALL</option>
+          <option value="MEMBER">MEMBER</option>
+          <option value="NON_MEMBER">NON_MEMBER</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sub">
+      <div class="field">
+        <span>Parameter Overstay</span>
+        <div class="seg">
+          <label><input type="radio" name="ovparam" id="ovp-none" value="" checked onchange="onParamChange()"><span>Tanpa Overstay</span></label>
+          <label><input type="radio" name="ovparam" id="ovp-dur" value="DURATION" onchange="onParamChange()"><span>Duration</span></label>
+          <label><input type="radio" name="ovparam" id="ovp-time" value="TIME" onchange="onParamChange()"><span>Range (jam)</span></label>
+        </div>
+      </div>
+      <div id="ov-duration" class="grid hidden" style="margin-top:12px;">
+        <div class="field"><span>Durasi Overstay (jam)</span><input type="number" id="overstay_duration" value="6" min="1"></div>
+      </div>
+      <div id="ov-time" class="grid hidden" style="margin-top:12px;">
+        <div class="field"><span>Jam Mulai</span><input type="time" id="overstay_start" value="00:00"></div>
+        <div class="field"><span>Jam Selesai</span><input type="time" id="overstay_end" value="06:00"></div>
+      </div>
+    </div>
+
+    <div class="sub">
+      <div class="field" style="max-width:280px;">
+        <span>Tipe Tarif Inap</span>
+        <select id="overstay_type" onchange="onInapChange()">
+          <option value="">Flat per hari</option>
+          <option value="PROGRESSIVE">Progressive</option>
+          <option value="LIMITED_PROGRESSIVE">Limited Progressive</option>
+        </select>
+      </div>
+      <div id="inap-fields" class="grid hidden" style="margin-top:12px;">
+        <div class="field"><span>Jam Awal Inap</span><input type="number" id="overstay_progressive_time_start" value="1"></div>
+        <div class="field"><span>Jam Berikutnya</span><input type="number" id="overstay_progressive_time_next" value="1"></div>
+        <div class="field"><span>Harga Awal (Rp)</span><input type="number" id="overstay_start_price" value="5000"></div>
+        <div class="field"><span>Harga Berikutnya (Rp)</span><input type="number" id="overstay_next_price" value="2000"></div>
+      </div>
+      <div id="inap-limited" class="grid hidden" style="margin-top:12px;">
+        <div class="field"><span>Tarif Inap (Rp/hari)</span><input type="number" id="inap_overnight_price" value="7000" min="0"></div>
+        <div class="field"><span>Batas Jam</span><input type="number" id="overstay_max_hours" value="3"></div>
+        <div class="field"><span>Batas Harga (Rp)</span><input type="number" id="overstay_max_price" value="7000"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Parking Rate -->
+  <div class="card">
+    <h2>Data Parking Rate</h2>
+    <div id="rate-fields" class="grid">
+      <div class="field"><span>Tarif Dasar (Rp)</span><input type="number" id="price" value="2000" min="0"></div>
+      <div class="field"><span>Tarif Jam Berikutnya (Rp)</span><input type="number" id="next_price" value="1000" min="0"></div>
+      <div class="field"><span>Jam Awal (initial)</span><input type="number" id="initial_time" value="1" min="0"></div>
+      <div class="field"><span>Jam per Kenaikan</span><input type="number" id="stay_time" value="1" min="0"></div>
+      <div id="daily-cap-field" class="field"><span>Daily Cap / Max Harga (Rp)</span><input type="number" id="max_price" value="0" min="0"></div>
+      <div class="field"><span>Max Jam</span><input type="number" id="max_hour" value="0" min="0"></div>
+    </div>
+    <div id="period-fields" class="hidden">
+      <table id="period-table">
+        <thead><tr><th>Dari (jam ke)</th><th>Sampai (jam ke)</th><th>Harga (Rp)</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <button type="button" id="add-period" onclick="addPeriodRow()">Tambah Rentang</button>
+    </div>
+    <div class="grid" style="margin-top:12px;">
+      <div class="field"><span>Grace Period (menit)</span><input type="number" id="grace_period" value="5" min="0"></div>
+      <div id="overnight-rate" class="field"><span>Tarif Inap (Rp/hari)</span><input type="number" id="overnight_price" value="7000" min="0"></div>
+      <div class="field"><span>Diskon (Rp)</span><input type="number" id="discount" value="0" min="0"></div>
+    </div>
+  </div>
+
+  <!-- Waktu -->
+  <div class="card">
+    <h2>Waktu Parkir</h2>
+    <div class="grid">
+      <div class="field"><span>Jam Masuk</span><input type="datetime-local" id="time_in"></div>
+      <div class="field"><span>Jam Keluar</span><input type="datetime-local" id="time_out"></div>
+    </div>
+  </div>
+
+  <button id="calc-btn" onclick="doCalculate()">Calculate</button>
+
+  <div id="error" class="hidden"></div>
+  <div id="result" class="card hidden"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const val = id => $(id)?.value ?? "";
+const num = id => { const el = $(id); return el && el.value !== "" ? Number(el.value) : 0; };
+
+function onTypeChange() {
+  const t = val("type");
+  const isPeriod = t === "PERIOD";
+  const isLimited = t === "LIMITED_PROGRESSIVE";
+  $("rate-fields").classList.toggle("hidden", isPeriod);
+  $("period-fields").classList.toggle("hidden", !isPeriod);
+  $("daily-cap-field").classList.toggle("hidden", !isLimited);
+  $("overnight-rate").classList.toggle("hidden", isLimited);
+  $("overnight_price").value = isLimited
+    ? num("inap_overnight_price")
+    : num("overnight_price");
+}
+
+function onParamChange() {
+  const p = document.querySelector('input[name=ovparam]:checked').value;
+  $("ov-duration").classList.toggle("hidden", p !== "DURATION");
+  $("ov-time").classList.toggle("hidden", p !== "TIME");
+}
+
+function onInapChange() {
+  const t = val("overstay_type");
+  $("inap-fields").classList.toggle("hidden", t === "");
+  $("inap-limited").classList.toggle("hidden", t !== "LIMITED_PROGRESSIVE");
+  // Sinkronkan tarif inap dengan sub-panel saat tipe limited progressive
+  onTypeChange();
+}
+
+function addPeriodRow(start = "", end = "", price = "") {
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td><input type="number" class="p-start" value="${start}" style="width:100%"></td>` +
+    `<td><input type="number" class="p-end" value="${end}" style="width:100%"></td>` +
+    `<td><input type="number" class="p-price" value="${price}" style="width:100%"></td>` +
+    `<td><button type="button" class="del-row" onclick="this.closest('tr').remove()" title="Hapus">&times;</button></td>`;
+  $("period-table").querySelector("tbody").appendChild(tr);
+}
+addPeriodRow(6, 10, 10000);
+
+function readPeriodRows() {
+  return [...$("period-table").querySelectorAll("tbody tr")].map(tr => ({
+    start: Number(tr.querySelector(".p-start").value),
+    end: Number(tr.querySelector(".p-end").value),
+    price: Number(tr.querySelector(".p-price").value),
+  }));
+}
+
+function prefillTimes() {
+  const d = new Date();
+  const fmt = dt => dt.toISOString().slice(0, 16);
+  const inDt = new Date(d); inDt.setHours(8, 0, 0, 0);
+  const outDt = new Date(inDt); outDt.setHours(14);
+  $("time_in").value = fmt(inDt);
+  $("time_out").value = fmt(outDt);
+}
+
+function getOvernightPrice() {
+  const isLimited = val("type") === "LIMITED_PROGRESSIVE";
+  const inapShown = val("overstay_type") === "LIMITED_PROGRESSIVE" && isLimited;
+  return inapShown ? num("inap_overnight_price") : num("overnight_price");
+}
+
+async function doCalculate() {
+  $("error").classList.add("hidden");
+  $("result").classList.add("hidden");
+
+  const payload = {
+    type: val("type"),
+    count_type: "INCREMENT",
+    current_user: document.querySelector('input[name=user]:checked').value,
+    time_in: val("time_in"),
+    time_out: val("time_out"),
+    grace_period: num("grace_period"),
+    discount: num("discount"),
+    price: num("price"),
+    next_price: num("next_price"),
+    initial_time: num("initial_time"),
+    stay_time: num("stay_time"),
+    max_price: num("max_price"),
+    max_hour: num("max_hour"),
+    overnight_price: getOvernightPrice(),
+    period_data: readPeriodRows(),
+    overstay_parameter: document.querySelector('input[name=ovparam]:checked').value,
+    overstay_duration: num("overstay_duration"),
+    overstay_start: val("overstay_start"),
+    overstay_end: val("overstay_end"),
+    overstay_affected_user: val("overstay_affected_user"),
+    overstay_type: val("overstay_type"),
+    overstay_progressive_time_start: num("overstay_progressive_time_start"),
+    overstay_progressive_time_next: num("overstay_progressive_time_next"),
+    overstay_start_price: num("overstay_start_price"),
+    overstay_next_price: num("overstay_next_price"),
+    overstay_max_hours: num("overstay_max_hours"),
+    overstay_max_price: num("overstay_max_price"),
+  };
+
+  let res;
+  try {
+    res = await fetch("/api/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    return showError("Tidak dapat terhubung ke server.");
+  }
+
+  const body = await res.json();
+  if (!res.ok) return showError(body.detail || "Terjadi kesalahan pada server.");
+
+  renderResult(body);
+}
+
+function showError(msg) {
+  const el = $("error");
+  el.textContent = msg;
+  el.classList.remove("hidden");
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+const rp = n => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(n);
+
+function renderResult(r) {
+  const badges =
+    (r.is_grace_period ? `<span class="badge grace">Grace Period — Gratis</span>` : "") +
+    (r.overstay_amount > 0 ? `<span class="badge overstay">Overstay ${r.overnight_days} hari</span>` : "");
+  $("result").innerHTML = `
+    <div class="badges">${badges || `<span class="badge" style="background:#edeff5;color:#667085;">Parkir Normal</span>`}</div>
+    <div class="result-total"><small>Total Pembayaran</small>${rp(r.total_amount)}</div>
+    <div class="breakdown">
+      <div><span>Lama Parkir</span><span>${r.total_hours} jam</span></div>
+      <div><span>Tarif Parkir</span><span>${rp(r.parking_amount)}</span></div>
+      <div><span>Tarif Inap / Overstay</span><span>${rp(r.overstay_amount)}</span></div>
+    </div>
+    ${(r.logs || []).length ? `<div class="logs">${r.logs.map(l => `${l.message}: ${l.values}`).join("<br>")}</div>` : ""}`;
+  $("result").classList.remove("hidden");
+  $("result").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+prefillTimes();
+</script>
+</body>
+</html>
