@@ -6,7 +6,7 @@ FLAT = {
     "time_in": "2026-07-20T08:00:00", "time_out": "2026-07-20T14:00:00",
     "grace_period": 5, "discount": 0,
     "price": 2000, "next_price": 0, "initial_time": 0, "stay_time": 0,
-    "max_price": 0, "max_hour": 0, "overnight_price": 7000, "period_data": [],
+    "max_price": 0, "max_hour": 0, "overnight_price": 7000,
     "overstay_parameter": "DURATION", "overstay_duration": 6,
     "overstay_affected_user": "ALL", "overstay_type": "",
 }
@@ -17,7 +17,7 @@ CASES = [
      {"is_grace_period": True, "total_amount": 0}),
     ("member-gratis-parkir", dict(FLAT, current_user="member"),
      {"parking_amount": 0, "total_amount": 7000}),
-    ("range-TIME", dict(FLAT, overstay_parameter="TIME", overstay_start="00:00",
+    ("range-PERIOD", dict(FLAT, overstay_parameter="PERIOD", overstay_start="00:00",
      overstay_end="06:00", time_in="2026-07-20T23:59:00",
      time_out="2026-07-21T01:00:00"), {"total_amount": 9000}),
     ("progressive-8j", dict(FLAT, type="PROGRESSIVE", next_price=1000,
@@ -26,6 +26,12 @@ CASES = [
     ("limited-cap", dict(FLAT, type="LIMITED_PROGRESSIVE", next_price=1000,
      initial_time=1, stay_time=1, max_price=4000, overnight_price=0,
      overstay_parameter=""), {"parking_amount": 4000}),
+    # Crosscheck: PERIOD (rentang) harus menambah inap; DURATION menambah inap sesuai durasi
+    ("progressive-PERIOD", dict(FLAT, type="PROGRESSIVE", next_price=1000,
+     initial_time=1, stay_time=1, overnight_price=7000,
+     overstay_parameter="PERIOD", overstay_start="00:00", overstay_end="06:00",
+     time_in="2026-07-20T23:59:00", time_out="2026-07-21T01:00:00"),
+     {"parking_amount": 3000, "total_amount": 10000}),
 ]
 
 failures = 0

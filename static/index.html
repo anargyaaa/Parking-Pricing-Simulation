@@ -95,7 +95,6 @@
           <option value="FLAT">FLAT (per hari)</option>
           <option value="PROGRESSIVE">PROGRESSIVE</option>
           <option value="LIMITED_PROGRESSIVE">LIMITED PROGRESSIVE</option>
-          <option value="PERIOD">PERIOD (Dynamic)</option>
         </select>
       </div>
       <div class="field">
@@ -121,7 +120,7 @@
         <div class="seg">
           <label><input type="radio" name="ovparam" id="ovp-none" value="" checked onchange="onParamChange()"><span>Tanpa Overstay</span></label>
           <label><input type="radio" name="ovparam" id="ovp-dur" value="DURATION" onchange="onParamChange()"><span>Duration</span></label>
-          <label><input type="radio" name="ovparam" id="ovp-time" value="TIME" onchange="onParamChange()"><span>Range (jam)</span></label>
+          <label><input type="radio" name="ovparam" id="ovp-period" value="PERIOD" onchange="onParamChange()"><span>Period</span></label>
         </div>
       </div>
       <div id="ov-duration" class="grid hidden" style="margin-top:12px;">
@@ -167,13 +166,6 @@
       <div id="daily-cap-field" class="field"><span>Daily Cap / Max Harga (Rp)</span><input type="number" id="max_price" value="0" min="0"></div>
       <div class="field"><span>Max Jam</span><input type="number" id="max_hour" value="0" min="0"></div>
     </div>
-    <div id="period-fields" class="hidden">
-      <table id="period-table">
-        <thead><tr><th>Dari (jam ke)</th><th>Sampai (jam ke)</th><th>Harga (Rp)</th><th></th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <button type="button" id="add-period" onclick="addPeriodRow()">Tambah Rentang</button>
-    </div>
     <div class="grid" style="margin-top:12px;">
       <div class="field"><span>Grace Period (menit)</span><input type="number" id="grace_period" value="5" min="0"></div>
       <div id="overnight-rate" class="field"><span>Tarif Inap (Rp/hari)</span><input type="number" id="overnight_price" value="7000" min="0"></div>
@@ -203,10 +195,7 @@ const num = id => { const el = $(id); return el && el.value !== "" ? Number(el.v
 
 function onTypeChange() {
   const t = val("type");
-  const isPeriod = t === "PERIOD";
   const isLimited = t === "LIMITED_PROGRESSIVE";
-  $("rate-fields").classList.toggle("hidden", isPeriod);
-  $("period-fields").classList.toggle("hidden", !isPeriod);
   $("daily-cap-field").classList.toggle("hidden", !isLimited);
   $("overnight-rate").classList.toggle("hidden", isLimited);
   $("overnight_price").value = isLimited
@@ -217,7 +206,7 @@ function onTypeChange() {
 function onParamChange() {
   const p = document.querySelector('input[name=ovparam]:checked').value;
   $("ov-duration").classList.toggle("hidden", p !== "DURATION");
-  $("ov-time").classList.toggle("hidden", p !== "TIME");
+  $("ov-time").classList.toggle("hidden", p !== "PERIOD");
   $("inap-section").classList.toggle("hidden", p === "");
   if (p === "") {
     $("overstay_type").value = "";
@@ -231,25 +220,6 @@ function onInapChange() {
   $("inap-limited").classList.toggle("hidden", t !== "LIMITED_PROGRESSIVE");
   // Sinkronkan tarif inap dengan sub-panel saat tipe limited progressive
   onTypeChange();
-}
-
-function addPeriodRow(start = "", end = "", price = "") {
-  const tr = document.createElement("tr");
-  tr.innerHTML =
-    `<td><input type="number" class="p-start" value="${start}" style="width:100%"></td>` +
-    `<td><input type="number" class="p-end" value="${end}" style="width:100%"></td>` +
-    `<td><input type="number" class="p-price" value="${price}" style="width:100%"></td>` +
-    `<td><button type="button" class="del-row" onclick="this.closest('tr').remove()" title="Hapus">&times;</button></td>`;
-  $("period-table").querySelector("tbody").appendChild(tr);
-}
-addPeriodRow(6, 10, 10000);
-
-function readPeriodRows() {
-  return [...$("period-table").querySelectorAll("tbody tr")].map(tr => ({
-    start: Number(tr.querySelector(".p-start").value),
-    end: Number(tr.querySelector(".p-end").value),
-    price: Number(tr.querySelector(".p-price").value),
-  }));
 }
 
 function prefillTimes() {
@@ -286,7 +256,6 @@ async function doCalculate() {
     max_price: num("max_price"),
     max_hour: num("max_hour"),
     overnight_price: getOvernightPrice(),
-    period_data: readPeriodRows(),
     overstay_parameter: document.querySelector('input[name=ovparam]:checked').value,
     overstay_duration: num("overstay_duration"),
     overstay_start: val("overstay_start"),

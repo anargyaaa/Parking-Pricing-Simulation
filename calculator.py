@@ -3,10 +3,18 @@ from datetime import datetime
 from spnapiutilities.builders.parking_amount_builder import ParkingAmountBuilder
 from spnapiutilities.core.price.price_model import PriceModel
 
-VALID_TYPES = {"FLAT", "PROGRESSIVE", "LIMITED_PROGRESSIVE", "PERIOD"}
-VALID_OVERSTAY_PARAMS = {"", "DURATION", "TIME"}
+VALID_TYPES = {"FLAT", "PROGRESSIVE", "LIMITED_PROGRESSIVE"}
+# PERIOD = parameter overstay (rentang jam mulai–selesai). Di-lapisan aplikasi bernama PERIOD,
+# tapi library membakukan nilai "TIME" (OverstayParameter.CURFEW), jadi dipetakan di calculate().
+VALID_OVERSTAY_PARAMS = {"", "DURATION", "PERIOD"}
 VALID_OVERSTAY_TYPES = {"", "PROGRESSIVE", "LIMITED_PROGRESSIVE"}
 VALID_AFFECTED_USERS = {"ALL", "MEMBER", "NON_MEMBER"}
+
+# nilai yang dipahami engine library untuk tanpa-overstay / durasi / rentang
+_NO_OVERSTAY = ""
+_DURATION_PARAM = "DURATION"
+_PERIOD_PARAM = "PERIOD"
+_MAPPED_PERIOD = "TIME"  # ponytail: library mengikat "TIME" (CURFEW); jangan ubah
 
 
 class ValidationError(ValueError):
@@ -34,16 +42,14 @@ def validate(data: dict):
 
     price_type = data.get("type") or ""
     if price_type not in VALID_TYPES:
-        raise ValidationError("Tipe tarif wajib dipilih (FLAT/PROGRESSIVE/LIMITED_PROGRESSIVE/PERIOD)")
+        raise ValidationError("Tipe tarif wajib dipilih (FLAT/PROGRESSIVE/LIMITED_PROGRESSIVE)")
 
-    if price_type != "PERIOD" and _num(data.get("price")) <= 0:
+    if _num(data.get("price")) <= 0:
         raise ValidationError("Harga tarif parkir wajib diisi")
-    if price_type == "PERIOD" and not data.get("period_data"):
-        raise ValidationError("Data periode (rentang harga) wajib diisi untuk tipe PERIOD")
 
     param = data.get("overstay_parameter") or ""
     if param not in VALID_OVERSTAY_PARAMS:
-        raise ValidationError("Parameter overstay harus DURATION atau TIME")
+        raise ValidationError("Parameter overstay harus DURATION atau PERIOD")
 
     overstay_type = data.get("overstay_type") or ""
     if overstay_type not in VALID_OVERSTAY_TYPES:
@@ -56,10 +62,10 @@ def validate(data: dict):
     # Overstay hanya dihitung jika ada tarif inap dan parameter dipilih
     has_overstay_price = _num(data.get("overnight_price")) > 0 or overstay_type != ""
     if param and has_overstay_price:
-        if param == "DURATION" and _num(data.get("overstay_duration")) <= 0:
+        if param == _DURATION_PARAM and _num(data.get("overstay_duration")) <= 0:
             raise ValidationError("Durasi overstay (jam) wajib diisi untuk parameter Duration")
-        if param == "TIME" and (not data.get("overstay_start") or not data.get("overstay_end")):
-            raise ValidationError("Jam mulai dan jam selesai overstay wajib diisi untuk parameter Range")
+        if param == _PERIOD_PARAM and (not data.get("overstay_start") or not data.get("overstay_end")):
+            raise ValidationError("Jam mulai dan jam selesai overstay wajib diisi untuk parameter PERIOD")
 
     return time_in, time_out
 
@@ -94,8 +100,10 @@ def calculate(data: dict) -> dict:
     # validasi sudah memastikan >0 utk param DURATION, selain itu pakai sentinel agar cabang overstay tak aktif
     dur = _num(data.get("overstay_duration"))
     price_model.set_overstay_duration(dur if dur > 0 else 10**9)
-    price_model.set_period_data(data.get("period_data"))
-    price_model.set_overstay_parameter(data.get("overstay_parameter") or None)
+    # PERIOD (aplikasi) dipetakan ke TIME (nilai yang dipahami library untuk overstay rentang)
+    param = data.get("overstay_parameter") or ""
+    param_mapped = _MAPPED_PERIOD if param == _PERIOD_PARAM else param or None
+    price_model.set_overstay_parameter(param_mapped)
     price_model.set_overstay_type(data.get("overstay_type") or None)
     price_model.set_overstay_progressive_time_start(_num(data.get("overstay_progressive_time_start")))
     price_model.set_overstay_progressive_time_next(_num(data.get("overstay_progressive_time_next")))
